@@ -1,18 +1,20 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "./App.css";
 import { Button, Card, Col, Container, Form, Row } from "react-bootstrap";
 
 function App() {
-  const [movies, setMovies] = useState([]);
-  const [filteredMoves, setFilteredMoves] = useState([]);
+  const [movies, setMovies] = useState(JSON.parse(localStorage.getItem('movies')) || []);
+  const [filteredMoves, setFilteredMoves] = useState(JSON.parse(localStorage.getItem('movies')) || []);
 
   const [formData, setFormData] = useState({
     title: "Init",
     genre: "comedy",
-    rate: "2",
+    rate: "7",
     year: "2022",
     type: "movie",
   });
+
+  const [filters, setFilters] = useState({});
 
   const handleFormData = (e) => {
     const target = e.target;
@@ -20,17 +22,39 @@ function App() {
     setFormData({ ...formData, [name]: target.value });
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setMovies([...movies, formData]);
-    setFilteredMoves([...filteredMoves, formData]);
+  const handleFilterData = (e) => {
+    const target = e.target;
+    const name = target.name;
+
+    setFilters({ ...filters, [name.split('F')[0]]: target.value });
   };
 
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const newMovie = { id: Date.now(), ...formData }
 
-  const filterTitle = (e) => {
-    const filteredMovies = movies.filter(movie => movie.title.includes(e.target.value))
+    setMovies([...movies, newMovie]);
+    setFilteredMoves([...filteredMoves, newMovie]);
+  };
+
+  const handleDelete = (id) => {
+    setMovies(movies.filter(movie => movie.id !== id));
+    setFilteredMoves(filteredMoves.filter(movie => movie.id !== id));
+  };
+
+  useEffect(() => {
+    localStorage.setItem('movies', JSON.stringify(movies))
+  }, [movies])
+
+  useEffect(() => {
+    const filteredMovies = movies.filter((movie) =>
+      Object.entries(filters).every(([key, value]) => movie[key] === value)
+    );
+
     setFilteredMoves(filteredMovies)
-  }
+  }, [filters, movies])
+
+
 
   return (
     <Container>
@@ -38,14 +62,51 @@ function App() {
       <Row>
         <Col xs={3}>
           <h2>Filters</h2>
+          <Button onClick={() => setFilters({})}>Resetuj filtry</Button>
           <Form>
-            <Form.Label>Filtruj tytuł</Form.Label>
-            <Form.Control
-              type="text"
-              name="filterTitle"
-              placeholder="Filtruj tytuł"
-              onChange={filterTitle}
-            />
+            <Form.Group className="mb-3" controlId="genre">
+              <Form.Label>Gatunek</Form.Label>
+              <Form.Select
+                name="genreFilter"
+                onChange={handleFilterData}
+              >
+                <option value="comedy">Komedia</option>
+                <option value="drama">Dramat</option>
+                <option value="horror">Horror</option>
+              </Form.Select>
+            </Form.Group>
+            <Form.Group className="mb-3" controlId="rate">
+              <Form.Label>Ocena</Form.Label>
+              {Array.from({ length: 10 }, (_, i) => (i + 1).toString()).map(
+                (rate) => {
+                  return (
+                    <Form.Check
+                      onChange={handleFilterData}
+                      key={rate}
+                      type="radio"
+                      value={rate}
+                      name="rateFilter"
+                      label={rate}
+                    />
+                  );
+                }
+              )}
+            </Form.Group>
+            <Form.Group className="mb-3" controlId="type">
+              <Form.Label>Typ</Form.Label>
+              {["movie", "series"].map((type) => {
+                return (
+                  <Form.Check
+                    key={type}
+                    type="radio"
+                    value={type}
+                    name="typeFilter"
+                    label={type}
+                    onChange={handleFilterData}
+                  />
+                );
+              })}
+            </Form.Group>
           </Form>
         </Col>
         <Col>
@@ -104,16 +165,16 @@ function App() {
               />
             </Form.Group>
             <Form.Group className="mb-3" controlId="type">
-              <Form.Label>Ocena</Form.Label>
-              {["movie", "series"].map((rate) => {
+              <Form.Label>Typ</Form.Label>
+              {["movie", "series"].map((type) => {
                 return (
                   <Form.Check
-                    key={rate}
-                    checked={rate === formData.type}
+                    key={type}
+                    checked={type === formData.type}
                     type="radio"
-                    value={rate}
+                    value={type}
                     name="type"
-                    label={rate}
+                    label={type}
                     onChange={handleFormData}
                   />
                 );
@@ -134,6 +195,9 @@ function App() {
                   <p>Rok: {movie.year}</p>
                   <p>Type: {movie.type}</p>
                 </Card.Body>
+                <Card.Footer>
+                  <Button variant="danger" onClick={() => handleDelete(movie.id)}>Delete</Button>
+                </Card.Footer>
               </Card>
             );
           })}
